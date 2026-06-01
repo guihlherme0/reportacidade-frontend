@@ -87,7 +87,6 @@ export default function DenunciasPage({ user }) {
       categoria: initialFilters.categoria,
       bairro: initialFilters.bairro,
     })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.tipo, user?.cidade])
 
   useEffect(() => {

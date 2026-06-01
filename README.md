@@ -1,35 +1,57 @@
 # Reporta Cidade Frontend
 
-Frontend simples em **React + Vite + Tailwind CSS** para o backend Flask `reporta-cidade-backend`.
+Frontend em **React + Vite + Tailwind CSS** para o backend Flask `reporta-cidade-backend`.
 
-A interface usa a paleta **Nord Snow Storm** como base visual:
+O sistema permite que cidadãos registrem denúncias urbanas e que prefeituras acompanhem os registros por dashboard, filtros e mudança de status.
 
-- `nord4`: `#d8dee9`
-- `nord5`: `#e5e9f0`
-- `nord6`: `#eceff4`
+## Stack
 
-Também foram adicionadas cores Nord auxiliares no `tailwind.config.js` para texto, botões, estados de erro e sucesso.
+- React 
+- Vite 
+- Tailwind CSS 3
+- CSS com paleta Nord customizada em `tailwind.config.js`
+- Fetch API com tratamento centralizado em `src/services/api.js`
 
 ## Funcionalidades
 
 ### Conta cidadão
 
-- Cadastro e login de usuário.
+- Cadastro e login.
 - Listagem de denúncias.
-- Cadastro de nova denúncia.
-- Exclusão da própria denúncia.
+- Busca local por ID, endereço, descrição, bairro, cidade e referência.
+- Filtros por cidade, status, categoria e bairro.
+- Ordenação por denúncias recentes, antigas ou status.
+- Paginação da listagem.
+- Cadastro de nova denúncia com validação dos campos.
+- Seleção de foto com prévia local.
+- Exclusão da própria denúncia com modal de confirmação.
 - Tela de perfil.
 - Alteração de senha.
 
 ### Conta prefeitura
 
-- Cadastro e login de prefeitura.
-- Dashboard com resumo das denúncias da cidade.
+- Cadastro e login.
+- Dashboard com resumo das denúncias.
 - Agrupamento por status, categoria e bairro.
-- Listagem de denúncias.
+- Listagem de denúncias com busca, filtros, ordenação e paginação.
 - Alteração de status das denúncias.
 - Tela de perfil.
 - Alteração de senha.
+
+## Rotas do frontend
+
+O app usa navegação baseada na History API:
+
+```txt
+/dashboard       Dashboard da prefeitura
+/denuncias       Listagem de denúncias
+/nova-denuncia   Cadastro de denúncia para cidadão
+/perfil          Dados da conta e alteração de senha
+```
+
+Ao acessar uma rota protegida sem sessão ativa, o usuário volta para a tela de autenticação.
+
+Em produção, configure o servidor para fazer fallback de qualquer rota do frontend para `index.html`. Sem esse fallback, acessar diretamente URLs como `/dashboard` ou `/perfil` pode retornar 404 no servidor.
 
 ## Rotas consumidas do backend
 
@@ -69,7 +91,7 @@ Crie o arquivo `.env` a partir do exemplo:
 cp .env.example .env
 ```
 
-Se o backend estiver rodando na porta padrão, mantenha:
+Configure a URL do backend:
 
 ```env
 VITE_API_URL=http://localhost:5000
@@ -87,15 +109,59 @@ Acesse:
 http://localhost:5173
 ```
 
-## Observações importantes
+## Scripts
 
-No backend, o CORS já está configurado para aceitar `http://localhost:5173` por padrão. Se mudar a porta do frontend, ajuste a variável `CORS_ORIGINS` no `.env` do backend.
+```bash
+npm run dev
+npm run build
+npm run preview
+```
 
-Este frontend usa `localStorage` para guardar o JWT:
+- `npm run dev`: inicia o servidor de desenvolvimento.
+- `npm run build`: gera a versão de produção em `dist/`.
+- `npm run preview`: serve localmente o build de produção.
+
+## Sessão e API
+
+O frontend guarda a sessão no `localStorage`:
 
 ```txt
 reporta_token
 reporta_user
 ```
 
-Para testar o dashboard, entre com uma conta do tipo **prefeitura**. Para criar denúncias, entre com uma conta do tipo **cidadão**.
+O token é enviado no cabeçalho:
+
+```txt
+Authorization: Bearer <token>
+```
+
+As requisições têm timeout de 15 segundos. Quando o backend retorna `401`, o app limpa a sessão local e volta para a autenticação.
+
+## Denúncias e fotos
+
+No cadastro de denúncia, o campo de foto mostra uma prévia local no navegador.
+
+Atualmente o frontend mantém compatibilidade com o backend enviando apenas o nome do arquivo no campo:
+
+```txt
+foto_filename
+```
+
+Ou seja, a imagem selecionada ainda não é enviada como upload real para o backend. Para upload completo, o backend precisa expor uma rota que aceite `multipart/form-data` ou outro fluxo de armazenamento de arquivos.
+
+## CORS
+
+No backend, o CORS deve aceitar a origem do Vite:
+
+```txt
+http://localhost:5173
+```
+
+Se mudar a porta ou domínio do frontend, ajuste a configuração `CORS_ORIGINS` no backend.
+
+## Teste manual recomendado
+
+Para testar o dashboard, entre com uma conta do tipo **prefeitura**.
+
+Para criar denúncias, entre com uma conta do tipo **cidadão**.

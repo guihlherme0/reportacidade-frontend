@@ -73,7 +73,7 @@ export default function App() {
       window.removeEventListener('popstate', syncRoute)
       window.removeEventListener('reporta:unauthorized', handleUnauthorized)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    
   }, [user?.tipo])
 
   useEffect(() => {
@@ -86,7 +86,7 @@ export default function App() {
     if (user.tipo === 'prefeitura' && page === 'nova-denuncia') {
       setPage('dashboard', { replace: true })
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    
   }, [page, user?.tipo])
 
   function saveUser(nextUser) {
