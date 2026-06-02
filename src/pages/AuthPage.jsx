@@ -11,6 +11,21 @@ const emptyForm = {
   cidade: '',
 }
 
+const featureCards = [
+  {
+    title: 'Denúncias',
+    description: 'Registre e acompanhe ocorrências urbanas.',
+  },
+  {
+    title: 'Painel',
+    description: 'Visualize dados por status, bairro e categoria.',
+  },
+  {
+    title: 'Meu perfil',
+    description: 'Gerencie seus dados e histórico de registros.',
+  },
+]
+
 export default function AuthPage({ onAuth }) {
   const [mode, setMode] = useState('login')
   const [tipo, setTipo] = useState('usuario')
@@ -69,7 +84,6 @@ export default function AuthPage({ onAuth }) {
     <div className="page-shell flex items-center justify-center px-4 py-10">
       <div className="grid w-full max-w-6xl gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
         <section className="space-y-6">
-          <span className="badge">Frontend React + Vite + Tailwind</span>
           <div>
             <p className="text-sm font-bold uppercase tracking-[0.35em] text-nord-10">Reporta Cidade</p>
             <h1 className="mt-3 text-4xl font-black tracking-tight text-nord-0 md:text-6xl">
@@ -81,10 +95,10 @@ export default function AuthPage({ onAuth }) {
             categorias e bairros com maior número de registros.
           </p>
           <div className="grid gap-3 sm:grid-cols-3">
-            {['Denúncias', 'Dashboard', 'Perfil'].map((item) => (
-              <div key={item} className="rounded-lg border border-nord-4 bg-nord-5 p-4">
-                <p className="font-bold text-nord-1">{item}</p>
-                <p className="mt-1 text-sm text-nord-3">Módulo integrado ao backend Flask.</p>
+            {featureCards.map((item) => (
+              <div key={item.title} className="rounded-lg border border-nord-4 bg-nord-5 p-4">
+                <p className="font-bold text-nord-1">{item.title}</p>
+                <p className="mt-1 text-sm text-nord-3">{item.description}</p>
               </div>
             ))}
           </div>

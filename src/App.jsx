@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import Layout from './components/Layout.jsx'
 import AuthPage from './pages/AuthPage.jsx'
 import DashboardPage from './pages/DashboardPage.jsx'
+import DetalhesDenuncia from './pages/DetalhesDenuncia.jsx'
 import DenunciasPage from './pages/DenunciasPage.jsx'
 import NovaDenunciaPage from './pages/NovaDenunciaPage.jsx'
 import PerfilPage from './pages/PerfilPage.jsx'
@@ -25,16 +26,26 @@ function parseStoredUser() {
 }
 
 function getPageFromPath(user) {
+  if (/^\/denuncias\/[^/]+$/.test(window.location.pathname)) {
+    return 'detalhes-denuncia'
+  }
+
   const page = Object.entries(pagePaths).find(([, path]) => path === window.location.pathname)?.[0]
 
   if (page) return page
   return user?.tipo === 'prefeitura' ? 'dashboard' : 'denuncias'
 }
 
+function getDenunciaIdFromPath() {
+  const match = window.location.pathname.match(/^\/denuncias\/([^/]+)$/)
+  return match ? decodeURIComponent(match[1]) : null
+}
+
 export default function App() {
   const [token, setToken] = useState(() => localStorage.getItem('reporta_token'))
   const [user, setUser] = useState(() => parseStoredUser())
   const [page, setPageState] = useState(() => getPageFromPath(parseStoredUser()))
+  const [denunciaId, setDenunciaId] = useState(() => getDenunciaIdFromPath())
   const [checkingSession, setCheckingSession] = useState(Boolean(token))
 
   useEffect(() => {
@@ -60,6 +71,7 @@ export default function App() {
   useEffect(() => {
     function syncRoute() {
       setPageState(getPageFromPath(user))
+      setDenunciaId(getDenunciaIdFromPath())
     }
 
     function handleUnauthorized() {
@@ -94,9 +106,13 @@ export default function App() {
     localStorage.setItem('reporta_user', JSON.stringify(nextUser))
   }
 
-  function setPage(nextPage, { replace = false } = {}) {
+  function setPage(nextPage, { replace = false, denunciaId: nextDenunciaId = null } = {}) {
     setPageState(nextPage)
-    const path = pagePaths[nextPage] || pagePaths.denuncias
+    setDenunciaId(nextPage === 'detalhes-denuncia' ? nextDenunciaId : null)
+    const path =
+      nextPage === 'detalhes-denuncia' && nextDenunciaId
+        ? `/denuncias/${encodeURIComponent(nextDenunciaId)}`
+        : pagePaths[nextPage] || pagePaths.denuncias
 
     if (window.location.pathname !== path) {
       const action = replace ? 'replaceState' : 'pushState'
@@ -135,11 +151,19 @@ export default function App() {
   let content = null
 
   if (page === 'dashboard') {
-    content = user.tipo === 'prefeitura' ? <DashboardPage /> : <DenunciasPage user={user} />
+    content = user.tipo === 'prefeitura' ? <DashboardPage /> : <DenunciasPage user={user} navigateToPage={setPage} />
   }
 
   if (page === 'denuncias') {
-    content = <DenunciasPage user={user} />
+    content = <DenunciasPage user={user} navigateToPage={setPage} />
+  }
+
+  if (page === 'detalhes-denuncia') {
+    content = denunciaId ? (
+      <DetalhesDenuncia id={denunciaId} onBack={() => setPage('denuncias')} />
+    ) : (
+      <DenunciasPage user={user} navigateToPage={setPage} />
+    )
   }
 
   if (page === 'nova-denuncia') {
@@ -151,7 +175,7 @@ export default function App() {
   }
 
   return (
-    <Layout user={user} page={page} setPage={setPage} onLogout={logout}>
+    <Layout user={user} page={page === 'detalhes-denuncia' ? 'denuncias' : page} setPage={setPage} onLogout={logout}>
       {content}
     </Layout>
   )
