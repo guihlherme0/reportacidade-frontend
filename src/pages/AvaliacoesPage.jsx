@@ -80,7 +80,6 @@ function AvaliacoesCidadao() {
 
   useEffect(() => {
     carregarDados()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   async function carregarResumo(prefeituraId) {
