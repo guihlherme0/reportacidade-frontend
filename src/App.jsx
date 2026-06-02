@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import Layout from './components/Layout.jsx'
 import AuthPage from './pages/AuthPage.jsx'
+import AvaliacoesPage from './pages/AvaliacoesPage.jsx'
 import DashboardPage from './pages/DashboardPage.jsx'
 import DetalhesDenuncia from './pages/DetalhesDenuncia.jsx'
 import DenunciasPage from './pages/DenunciasPage.jsx'
@@ -13,6 +14,7 @@ const pagePaths = {
   denuncias: '/denuncias',
   'nova-denuncia': '/nova-denuncia',
   perfil: '/perfil',
+  avaliacoes: '/avaliacoes',
 }
 
 function parseStoredUser() {
@@ -172,6 +174,10 @@ export default function App() {
 
   if (page === 'perfil') {
     content = <PerfilPage onUserUpdate={saveUser} />
+  }
+
+  if (page === 'avaliacoes') {
+    content = <AvaliacoesPage user={user} />
   }
 
   return (

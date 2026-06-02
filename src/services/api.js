@@ -260,4 +260,31 @@ export const api = {
       body: JSON.stringify(dados),
     })
   },
+
+  listarPrefeiturasAvaliacao() {
+    return request('/api/avaliacoes/prefeituras')
+  },
+
+  criarAvaliacao(dados) {
+    return request('/api/avaliacoes/criar', {
+      method: 'POST',
+      body: JSON.stringify(dados),
+    })
+  },
+
+  minhasAvaliacoes() {
+    return request('/api/avaliacoes/minhas')
+  },
+
+  avaliacoesMinhaPrefeitura() {
+    return request('/api/avaliacoes/minha-prefeitura')
+  },
+
+  resumoAvaliacoesMinhaPrefeitura() {
+    return request('/api/avaliacoes/minha-prefeitura/resumo')
+  },
+
+  resumoAvaliacoesPrefeitura(prefeituraId) {
+    return request(`/api/avaliacoes/resumo/${prefeituraId}`)
+  },
 }

@@ -1,12 +1,14 @@
 const usuarioLinks = [
   { id: 'denuncias', label: 'Denúncias', icon: '▦' },
   { id: 'nova-denuncia', label: 'Nova denúncia', icon: '+' },
+  { id: 'avaliacoes', label: 'Avaliar prefeitura', icon: '★' },
   { id: 'perfil', label: 'Perfil', icon: '◉' },
 ]
 
 const prefeituraLinks = [
   { id: 'dashboard', label: 'Dashboard', icon: '↗' },
   { id: 'denuncias', label: 'Denúncias', icon: '▦' },
+  { id: 'avaliacoes', label: 'Avaliações', icon: '★' },
   { id: 'perfil', label: 'Perfil', icon: '◉' },
 ]
 
