@@ -16,7 +16,7 @@ const emptyFilters = {
 
 const pageSize = 6
 
-export default function DenunciasPage({ user }) {
+export default function DenunciasPage({ user, navigateToPage }) {
   const [denuncias, setDenuncias] = useState([])
   const [filters, setFilters] = useState(emptyFilters)
   const [page, setPage] = useState(1)
@@ -160,12 +160,16 @@ export default function DenunciasPage({ user }) {
           onChange={(event) => updateFilter('busca', event.target.value)}
           placeholder="ID, endereço, descrição..."
         />
-        <Input
-          label="Cidade"
-          value={filters.cidade}
-          onChange={(event) => updateFilter('cidade', event.target.value)}
-          placeholder="Ex: Quixadá"
-        />
+        {user?.tipo === 'prefeitura' ? (
+          <Input label="Cidade" value={`${user.cidade} - ${user.estado}`} disabled />
+        ) : (
+          <Input
+            label="Cidade"
+            value={filters.cidade}
+            onChange={(event) => updateFilter('cidade', event.target.value)}
+            placeholder="Ex: Quixadá"
+          />
+        )}
         <Select label="Status" value={filters.status} onChange={(event) => updateFilter('status', event.target.value)}>
           <option value="">Todos</option>
           {statusOptions.map((status) => (
@@ -249,6 +253,14 @@ export default function DenunciasPage({ user }) {
                 </div>
 
                 <div className="flex min-w-52 flex-col gap-2">
+                  <button
+                    type="button"
+                    onClick={() => navigateToPage('detalhes-denuncia', { denunciaId: denuncia.id })}
+                    className="btn-secondary"
+                  >
+                    Ver detalhes
+                  </button>
+
                   {user?.tipo === 'prefeitura' ? (
                     <Select
                       label="Alterar status"

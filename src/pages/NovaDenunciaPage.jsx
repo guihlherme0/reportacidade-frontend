@@ -12,58 +12,111 @@ const emptyForm = {
   cidade: '',
   estado: '',
   ponto_referencia: '',
-  foto_filename: '',
 }
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024
+
+const allowedImageTypes = [
+  'image/png',
+  'image/jpeg',
+  'image/jpg',
+  'image/webp',
+]
 
 export default function NovaDenunciaPage({ setPage }) {
   const [form, setForm] = useState(emptyForm)
+  const [foto, setFoto] = useState(null)
   const [fotoPreview, setFotoPreview] = useState('')
+  const [fotoInputKey, setFotoInputKey] = useState(0)
+
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
   useEffect(() => {
     return () => {
-      if (fotoPreview) URL.revokeObjectURL(fotoPreview)
+      if (fotoPreview) {
+        URL.revokeObjectURL(fotoPreview)
+      }
     }
   }, [fotoPreview])
 
   function updateField(field, value) {
-    setForm((current) => ({ ...current, [field]: value }))
+    setForm((current) => ({
+      ...current,
+      [field]: value,
+    }))
   }
 
   function handleFotoChange(event) {
     const file = event.target.files?.[0]
 
-    if (fotoPreview) URL.revokeObjectURL(fotoPreview)
+    setError('')
+    setSuccess('')
 
     if (!file) {
+      setFoto(null)
       setFotoPreview('')
-      updateField('foto_filename', '')
       return
     }
 
+    if (!allowedImageTypes.includes(file.type)) {
+      setFoto(null)
+      setFotoPreview('')
+      setFotoInputKey((current) => current + 1)
+      setError('Formato de imagem inválido. Use PNG, JPG, JPEG ou WEBP.')
+      return
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      setFoto(null)
+      setFotoPreview('')
+      setFotoInputKey((current) => current + 1)
+      setError('A imagem deve ter no máximo 5 MB.')
+      return
+    }
+
+    setFoto(file)
     setFotoPreview(URL.createObjectURL(file))
-    updateField('foto_filename', file.name)
   }
 
   function validateForm() {
-    const requiredFields = ['tipo_problema', 'descricao', 'endereco', 'bairro', 'cidade', 'estado']
-    const hasEmptyRequired = requiredFields.some((field) => !form[field].trim())
+    const requiredFields = [
+      'tipo_problema',
+      'descricao',
+      'endereco',
+      'bairro',
+      'cidade',
+      'estado',
+    ]
 
-    if (hasEmptyRequired) return 'Preencha todos os campos obrigatórios.'
-    if (form.estado.trim().length !== 2) return 'Informe o estado com 2 letras, como CE.'
-    if (form.descricao.trim().length < 15) return 'Descreva o problema com pelo menos 15 caracteres.'
+    const hasEmptyRequired = requiredFields.some(
+      (field) => !form[field].trim()
+    )
+
+    if (hasEmptyRequired) {
+      return 'Preencha todos os campos obrigatórios.'
+    }
+
+    if (form.estado.trim().length !== 2) {
+      return 'Informe o estado com 2 letras, como CE.'
+    }
+
+    if (form.descricao.trim().length < 15) {
+      return 'Descreva o problema com pelo menos 15 caracteres.'
+    }
 
     return ''
   }
 
   async function handleSubmit(event) {
     event.preventDefault()
+
     setError('')
     setSuccess('')
 
     const validationError = validateForm()
+
     if (validationError) {
       setError(validationError)
       return
@@ -72,22 +125,29 @@ export default function NovaDenunciaPage({ setPage }) {
     setLoading(true)
 
     try {
-      await api.criarDenuncia({
-        ...form,
-        tipo_problema: form.tipo_problema.trim(),
-        descricao: form.descricao.trim(),
-        endereco: form.endereco.trim(),
-        bairro: form.bairro.trim(),
-        cidade: form.cidade.trim(),
-        estado: form.estado.trim().toUpperCase(),
-        ponto_referencia: form.ponto_referencia.trim(),
-        foto_filename: form.foto_filename.trim(),
-      })
+      const formData = new FormData()
+
+      formData.append('tipo_problema', form.tipo_problema.trim())
+      formData.append('descricao', form.descricao.trim())
+      formData.append('endereco', form.endereco.trim())
+      formData.append('bairro', form.bairro.trim())
+      formData.append('cidade', form.cidade.trim())
+      formData.append('estado', form.estado.trim().toUpperCase())
+      formData.append('ponto_referencia', form.ponto_referencia.trim())
+
+      if (foto) {
+        formData.append('foto', foto)
+      }
+
+      await api.criarDenuncia(formData)
+
       setSuccess('Denúncia cadastrada com sucesso.')
       setForm(emptyForm)
+      setFoto(null)
       setFotoPreview('')
+      setFotoInputKey((current) => current + 1)
     } catch (err) {
-      setError(err.message)
+      setError(err.message || 'Erro ao cadastrar denúncia.')
     } finally {
       setLoading(false)
     }
@@ -97,10 +157,20 @@ export default function NovaDenunciaPage({ setPage }) {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-sm font-bold uppercase tracking-[0.25em] text-nord-10">Nova denúncia</p>
-          <h2 className="mt-2 text-3xl font-black text-nord-0">Cadastrar problema urbano</h2>
+          <p className="text-sm font-bold uppercase tracking-[0.25em] text-nord-10">
+            Nova denúncia
+          </p>
+
+          <h2 className="mt-2 text-3xl font-black text-nord-0">
+            Cadastrar problema urbano
+          </h2>
         </div>
-        <button type="button" onClick={() => setPage('denuncias')} className="btn-secondary self-start md:self-auto">
+
+        <button
+          type="button"
+          onClick={() => setPage('denuncias')}
+          className="btn-secondary self-start md:self-auto"
+        >
           Ver denúncias
         </button>
       </div>
@@ -113,12 +183,14 @@ export default function NovaDenunciaPage({ setPage }) {
           required
         >
           <option value="">Selecione</option>
+
           {categoriaOptions.map((categoria) => (
             <option key={categoria} value={categoria}>
               {categoria}
             </option>
           ))}
         </Select>
+
         <Input
           label="Endereço"
           value={form.endereco}
@@ -126,12 +198,14 @@ export default function NovaDenunciaPage({ setPage }) {
           placeholder="Rua, número ou local aproximado"
           required
         />
+
         <Input
           label="Bairro"
           value={form.bairro}
           onChange={(event) => updateField('bairro', event.target.value)}
           required
         />
+
         <div className="grid gap-4 sm:grid-cols-2">
           <Input
             label="Cidade"
@@ -139,24 +213,37 @@ export default function NovaDenunciaPage({ setPage }) {
             onChange={(event) => updateField('cidade', event.target.value)}
             required
           />
+
           <Input
             label="Estado"
             value={form.estado}
-            onChange={(event) => updateField('estado', event.target.value.toUpperCase().slice(0, 2))}
+            onChange={(event) =>
+              updateField('estado', event.target.value.toUpperCase().slice(0, 2))
+            }
             placeholder="CE"
             maxLength={2}
             required
           />
         </div>
+
         <Input
           label="Ponto de referência"
           value={form.ponto_referencia}
           onChange={(event) => updateField('ponto_referencia', event.target.value)}
           placeholder="Opcional"
         />
+
         <label className="block">
           <span className="label">Foto</span>
-          <input className="field" type="file" accept="image/*" onChange={handleFotoChange} />
+
+          <input
+            key={fotoInputKey}
+            className="field"
+            type="file"
+            accept="image/png,image/jpeg,image/jpg,image/webp"
+            onChange={handleFotoChange}
+          />
+
           {fotoPreview ? (
             <img
               src={fotoPreview}
@@ -164,7 +251,12 @@ export default function NovaDenunciaPage({ setPage }) {
               className="mt-3 aspect-video w-full rounded-lg border border-nord-4 object-cover"
             />
           ) : null}
+
+          <span className="mt-2 block text-xs text-nord-3">
+            Formatos aceitos: PNG, JPG, JPEG ou WEBP. Tamanho máximo: 5 MB.
+          </span>
         </label>
+
         <div className="md:col-span-2">
           <Textarea
             label="Descrição"
@@ -178,10 +270,16 @@ export default function NovaDenunciaPage({ setPage }) {
         <div className="space-y-3 md:col-span-2">
           <Alert type="error">{error}</Alert>
           <Alert type="success">{success}</Alert>
-          <button type="submit" disabled={loading} className="btn-primary w-full md:w-auto">
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="btn-primary w-full md:w-auto"
+          >
             <span className="icon" aria-hidden="true">
               +
             </span>
+
             {loading ? 'Cadastrando...' : 'Cadastrar denúncia'}
           </button>
         </div>
