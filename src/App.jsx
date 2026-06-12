@@ -162,7 +162,7 @@ export default function App() {
 
   if (page === 'detalhes-denuncia') {
     content = denunciaId ? (
-      <DetalhesDenuncia id={denunciaId} onBack={() => setPage('denuncias')} />
+      <DetalhesDenuncia id={denunciaId} user={user} onBack={() => setPage('denuncias')} />
     ) : (
       <DenunciasPage user={user} navigateToPage={setPage} />
     )

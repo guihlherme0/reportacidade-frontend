@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Alert from '../components/Alert.jsx'
 import { Input, Select, Textarea } from '../components/Field.jsx'
 import { api } from '../services/api.js'
 import { categoriaOptions } from '../utils/formatters.js'
 
 const emptyForm = {
+  cep: '',
   tipo_problema: '',
   descricao: '',
   endereco: '',
@@ -23,14 +24,32 @@ const allowedImageTypes = [
   'image/webp',
 ]
 
+function limparCep(value) {
+  return String(value || '').replace(/\D/g, '').slice(0, 8)
+}
+
+function formatarCep(value) {
+  const cep = limparCep(value)
+
+  if (cep.length > 5) {
+    return `${cep.slice(0, 5)}-${cep.slice(5)}`
+  }
+
+  return cep
+}
+
 export default function NovaDenunciaPage({ setPage }) {
   const [form, setForm] = useState(emptyForm)
   const [foto, setFoto] = useState(null)
   const [fotoPreview, setFotoPreview] = useState('')
   const [fotoInputKey, setFotoInputKey] = useState(0)
+  const ultimoCepConsultado = useRef('')
 
   const [loading, setLoading] = useState(false)
+  const [loadingCep, setLoadingCep] = useState(false)
   const [error, setError] = useState('')
+  const [cepError, setCepError] = useState('')
+  const [cepSuccess, setCepSuccess] = useState('')
   const [success, setSuccess] = useState('')
 
   useEffect(() => {
@@ -46,6 +65,53 @@ export default function NovaDenunciaPage({ setPage }) {
       ...current,
       [field]: value,
     }))
+  }
+
+  function preencherEnderecoPorCep(data) {
+    setForm((current) => ({
+      ...current,
+      endereco: data.logradouro || current.endereco,
+      bairro: data.bairro || current.bairro,
+      cidade: data.localidade || current.cidade,
+      estado: data.uf || current.estado,
+    }))
+  }
+
+  async function consultarCep(cepFormatado) {
+    const cep = limparCep(cepFormatado)
+
+    if (cep.length !== 8 || cep === ultimoCepConsultado.current) {
+      return
+    }
+
+    ultimoCepConsultado.current = cep
+    setLoadingCep(true)
+    setCepError('')
+    setCepSuccess('')
+
+    try {
+      const data = await api.buscarCep(cep)
+      preencherEnderecoPorCep(data)
+      setCepSuccess('Endereço preenchido pelo CEP.')
+    } catch (err) {
+      ultimoCepConsultado.current = ''
+      setCepError(err.message || 'Erro ao consultar CEP.')
+    } finally {
+      setLoadingCep(false)
+    }
+  }
+
+  function handleCepChange(event) {
+    const cep = formatarCep(event.target.value)
+    updateField('cep', cep)
+    setCepError('')
+    setCepSuccess('')
+
+    if (limparCep(cep).length === 8) {
+      consultarCep(cep)
+    } else {
+      ultimoCepConsultado.current = ''
+    }
   }
 
   function handleFotoChange(event) {
@@ -98,6 +164,10 @@ export default function NovaDenunciaPage({ setPage }) {
       return 'Preencha todos os campos obrigatórios.'
     }
 
+    if (form.cep.trim() && limparCep(form.cep).length !== 8) {
+      return 'Informe um CEP válido com 8 dígitos.'
+    }
+
     if (form.estado.trim().length !== 2) {
       return 'Informe o estado com 2 letras, como CE.'
     }
@@ -143,6 +213,9 @@ export default function NovaDenunciaPage({ setPage }) {
 
       setSuccess('Denúncia cadastrada com sucesso.')
       setForm(emptyForm)
+      ultimoCepConsultado.current = ''
+      setCepError('')
+      setCepSuccess('')
       setFoto(null)
       setFotoPreview('')
       setFotoInputKey((current) => current + 1)
@@ -190,6 +263,24 @@ export default function NovaDenunciaPage({ setPage }) {
             </option>
           ))}
         </Select>
+
+        <div>
+          <Input
+            label="CEP"
+            value={form.cep}
+            onChange={handleCepChange}
+            onBlur={() => consultarCep(form.cep)}
+            placeholder="00000-000"
+            inputMode="numeric"
+            maxLength={9}
+          />
+
+          {loadingCep ? (
+            <p className="mt-2 text-xs font-semibold text-nord-3">
+              Consultando CEP...
+            </p>
+          ) : null}
+        </div>
 
         <Input
           label="Endereço"
@@ -268,12 +359,14 @@ export default function NovaDenunciaPage({ setPage }) {
         </div>
 
         <div className="space-y-3 md:col-span-2">
+          <Alert type="error">{cepError}</Alert>
+          <Alert type="success">{cepSuccess}</Alert>
           <Alert type="error">{error}</Alert>
           <Alert type="success">{success}</Alert>
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || loadingCep}
             className="btn-primary w-full md:w-auto"
           >
             <span className="icon" aria-hidden="true">

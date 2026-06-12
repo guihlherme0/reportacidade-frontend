@@ -1,12 +1,34 @@
 import { useEffect, useState } from "react";
+import Alert from "../components/Alert";
+import { Textarea } from "../components/Field";
 import { api } from "../services/api";
 import { formatDate, statusClass, statusLabel } from "../utils/formatters";
 
-function DetalhesDenuncia({ id, onBack }) {
+function DetalhesDenuncia({ id, user, onBack }) {
   const [denuncia, setDenuncia] = useState(null);
   const [imagemUrl, setImagemUrl] = useState(null);
+  const [comentarios, setComentarios] = useState([]);
+  const [textoComentario, setTextoComentario] = useState("");
   const [erro, setErro] = useState("");
+  const [erroComentario, setErroComentario] = useState("");
+  const [sucessoComentario, setSucessoComentario] = useState("");
   const [carregando, setCarregando] = useState(true);
+  const [carregandoComentarios, setCarregandoComentarios] = useState(false);
+  const [salvandoComentario, setSalvandoComentario] = useState(false);
+
+  async function carregarComentarios() {
+    try {
+      setCarregandoComentarios(true);
+      setErroComentario("");
+
+      const resposta = await api.listarComentariosDenuncia(id);
+      setComentarios(resposta.comentarios || []);
+    } catch (error) {
+      setErroComentario(error.message || "Erro ao carregar comentários.");
+    } finally {
+      setCarregandoComentarios(false);
+    }
+  }
 
   useEffect(() => {
     let urlCriada = null;
@@ -15,6 +37,10 @@ function DetalhesDenuncia({ id, onBack }) {
       try {
         setCarregando(true);
         setErro("");
+        setErroComentario("");
+        setSucessoComentario("");
+        setComentarios([]);
+        setTextoComentario("");
 
         const resposta = await api.buscarDenuncia(id);
         const denunciaCarregada = resposta.denuncia;
@@ -29,7 +55,11 @@ function DetalhesDenuncia({ id, onBack }) {
           } catch {
             setImagemUrl(null);
           }
+        } else {
+          setImagemUrl(null);
         }
+
+        await carregarComentarios();
       } catch (error) {
         setErro(error.message || "Erro ao carregar denúncia.");
       } finally {
@@ -45,6 +75,31 @@ function DetalhesDenuncia({ id, onBack }) {
       }
     };
   }, [id]);
+
+  async function enviarComentario(event) {
+    event.preventDefault();
+
+    const texto = textoComentario.trim();
+
+    if (!texto) {
+      return;
+    }
+
+    try {
+      setSalvandoComentario(true);
+      setErroComentario("");
+      setSucessoComentario("");
+
+      const resposta = await api.criarComentarioDenuncia(id, { texto });
+      setComentarios((atuais) => [...atuais, resposta.comentario]);
+      setTextoComentario("");
+      setSucessoComentario("Comentário enviado.");
+    } catch (error) {
+      setErroComentario(error.message || "Erro ao enviar comentário.");
+    } finally {
+      setSalvandoComentario(false);
+    }
+  }
 
   if (carregando) {
     return (
@@ -85,6 +140,13 @@ function DetalhesDenuncia({ id, onBack }) {
       </div>
     );
   }
+
+  const comentarioDisponivel =
+    Boolean(textoComentario.trim()) && !salvandoComentario;
+  const podeComentar =
+    user?.tipo === "prefeitura" ||
+    (user?.tipo === "usuario" &&
+      String(denuncia.usuario_id) === String(user.id));
 
   return (
     <div className="space-y-6">
@@ -165,7 +227,95 @@ function DetalhesDenuncia({ id, onBack }) {
           </p>
         )}
       </section>
+
+      <section className="card p-6">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-xl font-black text-nord-0">Comentários</h2>
+          <span className="badge w-fit">{comentarios.length}</span>
+        </div>
+
+        {podeComentar ? (
+          <form onSubmit={enviarComentario} className="mt-5 space-y-3">
+            <Textarea
+              label="Novo comentário"
+              value={textoComentario}
+              maxLength={1000}
+              rows={4}
+              placeholder={
+                user?.tipo === "prefeitura"
+                  ? "Atualização da prefeitura..."
+                  : "Escreva sua mensagem..."
+              }
+              onChange={(event) => setTextoComentario(event.target.value)}
+            />
+
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs font-semibold text-nord-3">
+                {textoComentario.length}/1000
+              </p>
+
+              <button
+                type="submit"
+                disabled={!comentarioDisponivel}
+                className="btn-primary"
+              >
+                {salvandoComentario ? "Enviando..." : "Enviar comentário"}
+              </button>
+            </div>
+          </form>
+        ) : null}
+
+        <div className="mt-4 space-y-3">
+          <Alert type="error">{erroComentario}</Alert>
+          <Alert type="success">{sucessoComentario}</Alert>
+        </div>
+
+        <div className="mt-6 space-y-3">
+          {carregandoComentarios ? (
+            <p className="text-sm text-nord-3">Carregando comentários...</p>
+          ) : comentarios.length === 0 ? (
+            <p className="text-sm text-nord-3">Nenhum comentário enviado.</p>
+          ) : (
+            comentarios.map((comentario) => (
+              <ComentarioItem key={comentario.id} comentario={comentario} />
+            ))
+          )}
+        </div>
+      </section>
     </div>
+  );
+}
+
+function ComentarioItem({ comentario }) {
+  const prefeitura = comentario.autor_tipo === "prefeitura";
+  const autorTipo = prefeitura ? "Prefeitura" : "Cidadão";
+  const autorNome = comentario.autor_nome || autorTipo;
+
+  return (
+    <article
+      className={`rounded-lg border p-4 ${
+        prefeitura
+          ? "border-nord-10 bg-nord-10/10"
+          : "border-nord-4 bg-nord-6"
+      }`}
+    >
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="font-bold text-nord-0">{autorNome}</p>
+          <p className="mt-1 text-xs font-semibold uppercase tracking-[0.18em] text-nord-3">
+            {autorTipo}
+          </p>
+        </div>
+
+        <time className="text-sm text-nord-3">
+          {formatDate(comentario.data)}
+        </time>
+      </div>
+
+      <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-nord-1">
+        {comentario.texto}
+      </p>
+    </article>
   );
 }
 

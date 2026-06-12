@@ -45,7 +45,13 @@ export const statusOptions = [
   'EM_ANDAMENTO',
   'RESOLVIDA',
   'REJEITADA',
-  'CANCELADA',
+]
+
+export const statusAlteracaoOptions = [
+  'EM_ANALISE',
+  'EM_ANDAMENTO',
+  'RESOLVIDA',
+  'REJEITADA',
 ]
 
 export const categoriaOptions = [

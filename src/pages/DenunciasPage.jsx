@@ -3,7 +3,14 @@ import Alert from '../components/Alert.jsx'
 import EmptyState from '../components/EmptyState.jsx'
 import { Input, Select } from '../components/Field.jsx'
 import { api } from '../services/api.js'
-import { categoriaOptions, formatDate, statusClass, statusLabel, statusOptions } from '../utils/formatters.js'
+import {
+  categoriaOptions,
+  formatDate,
+  statusAlteracaoOptions,
+  statusClass,
+  statusLabel,
+  statusOptions,
+} from '../utils/formatters.js'
 
 const emptyFilters = {
   busca: '',
@@ -15,6 +22,7 @@ const emptyFilters = {
 }
 
 const pageSize = 6
+const statusFinais = new Set(['RESOLVIDA', 'REJEITADA'])
 
 export default function DenunciasPage({ user, navigateToPage }) {
   const [denuncias, setDenuncias] = useState([])
@@ -25,6 +33,7 @@ export default function DenunciasPage({ user, navigateToPage }) {
   const [success, setSuccess] = useState('')
   const [updatingId, setUpdatingId] = useState(null)
   const [pendingDelete, setPendingDelete] = useState(null)
+  const [pendingStatus, setPendingStatus] = useState(null)
 
   const serverFilters = useMemo(
     () => ({
@@ -113,7 +122,23 @@ export default function DenunciasPage({ user, navigateToPage }) {
     })
   }
 
-  async function alterarStatus(denuncia, status) {
+  function solicitarAlteracaoStatus(denuncia, status) {
+    if (!status || status === denuncia.status) {
+      return
+    }
+
+    setError('')
+    setSuccess('')
+    setPendingStatus({ denuncia, status })
+  }
+
+  async function alterarStatus() {
+    if (!pendingStatus) {
+      return
+    }
+
+    const { denuncia, status } = pendingStatus
+
     setUpdatingId(denuncia.id)
     setError('')
     setSuccess('')
@@ -121,6 +146,7 @@ export default function DenunciasPage({ user, navigateToPage }) {
     try {
       await api.atualizarStatus(denuncia.id, { status })
       setSuccess(`Status da denúncia #${denuncia.id} atualizado.`)
+      setPendingStatus(null)
       await carregarDenuncias(serverFilters)
     } catch (err) {
       setError(err.message)
@@ -262,18 +288,34 @@ export default function DenunciasPage({ user, navigateToPage }) {
                   </button>
 
                   {user?.tipo === 'prefeitura' ? (
-                    <Select
-                      label="Alterar status"
-                      value={denuncia.status}
-                      disabled={updatingId === denuncia.id}
-                      onChange={(event) => alterarStatus(denuncia, event.target.value)}
-                    >
-                      {statusOptions.map((status) => (
-                        <option key={status} value={status}>
-                          {statusLabel(status)}
+                    statusFinais.has(denuncia.status) ? (
+                      <Input
+                        label="Status final"
+                        value={statusLabel(denuncia.status)}
+                        disabled
+                      />
+                    ) : (
+                      <Select
+                        label="Alterar status"
+                        value={denuncia.status}
+                        disabled={updatingId === denuncia.id}
+                        onChange={(event) =>
+                          solicitarAlteracaoStatus(denuncia, event.target.value)
+                        }
+                      >
+                        <option value={denuncia.status}>
+                          {statusLabel(denuncia.status)}
                         </option>
-                      ))}
-                    </Select>
+
+                        {statusAlteracaoOptions
+                          .filter((status) => status !== denuncia.status)
+                          .map((status) => (
+                            <option key={status} value={status}>
+                              {statusLabel(status)}
+                            </option>
+                          ))}
+                      </Select>
+                    )
                   ) : null}
 
                   {user?.tipo === 'usuario' && denuncia.usuario_id === user.id ? (
@@ -313,6 +355,13 @@ export default function DenunciasPage({ user, navigateToPage }) {
         loading={updatingId === pendingDelete?.id}
         onCancel={() => setPendingDelete(null)}
         onConfirm={() => excluirDenuncia(pendingDelete)}
+      />
+
+      <StatusModal
+        alteracao={pendingStatus}
+        loading={updatingId === pendingStatus?.denuncia?.id}
+        onCancel={() => setPendingStatus(null)}
+        onConfirm={alterarStatus}
       />
     </div>
   )
@@ -368,6 +417,39 @@ function DeleteModal({ denuncia, loading, onCancel, onConfirm }) {
             className="inline-flex items-center justify-center rounded-lg border border-nord-11 bg-nord-11 px-4 py-3 text-sm font-bold text-white transition hover:bg-nord-11/90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loading ? 'Excluindo...' : 'Excluir'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function StatusModal({ alteracao, loading, onCancel, onConfirm }) {
+  if (!alteracao) return null
+
+  const { denuncia, status } = alteracao
+
+  return (
+    <div className="fixed inset-0 z-20 flex items-center justify-center bg-nord-0/40 px-4">
+      <div className="card max-w-md p-6 shadow-xl">
+        <h3 className="text-xl font-black text-nord-0">
+          Confirmar status da denúncia #{denuncia.id}
+        </h3>
+        <p className="mt-3 text-sm leading-6 text-nord-3">
+          O status será alterado de {statusLabel(denuncia.status)} para {statusLabel(status)}.
+          Status resolvidos ou rejeitados não poderão ser alterados depois.
+        </p>
+        <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-end">
+          <button type="button" onClick={onCancel} disabled={loading} className="btn-secondary">
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={loading}
+            className="btn-primary"
+          >
+            {loading ? 'Alterando...' : 'Confirmar'}
           </button>
         </div>
       </div>

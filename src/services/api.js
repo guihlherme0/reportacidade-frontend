@@ -1,5 +1,7 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 const REQUEST_TIMEOUT = 15000
+const VIA_CEP_URL = 'https://viacep.com.br/ws'
+const VIA_CEP_TIMEOUT = 8000
 
 function getToken() {
   return localStorage.getItem('reporta_token')
@@ -151,6 +153,47 @@ function buildQuery(filters) {
   return query ? `?${query}` : ''
 }
 
+async function requestViaCep(cep) {
+  const cepLimpo = String(cep || '').replace(/\D/g, '')
+
+  if (cepLimpo.length !== 8) {
+    throw new Error('Informe um CEP com 8 dígitos.')
+  }
+
+  const controller = new AbortController()
+  const timeoutId = window.setTimeout(() => controller.abort(), VIA_CEP_TIMEOUT)
+
+  try {
+    const response = await fetch(`${VIA_CEP_URL}/${cepLimpo}/json/`, {
+      signal: controller.signal,
+    })
+
+    if (!response.ok) {
+      throw new Error('Não foi possível consultar o CEP.')
+    }
+
+    const data = await response.json()
+
+    if (data?.erro) {
+      throw new Error('CEP não encontrado.')
+    }
+
+    return data
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new Error('A consulta do CEP demorou para responder.')
+    }
+
+    if (error instanceof TypeError) {
+      throw new Error('Não foi possível conectar ao ViaCEP.')
+    }
+
+    throw error
+  } finally {
+    window.clearTimeout(timeoutId)
+  }
+}
+
 export const api = {
   login(tipo, dados) {
     const prefix = tipo === 'prefeitura' ? 'prefeituras' : 'usuarios'
@@ -210,6 +253,10 @@ export const api = {
     })
   },
 
+  buscarCep(cep) {
+    return requestViaCep(cep)
+  },
+
   buscarImagemDenuncia(id) {
     return requestBlob(`/api/denuncias/${id}/imagem`)
   },
@@ -224,6 +271,17 @@ export const api = {
   excluirDenuncia(id) {
     return request(`/api/denuncias/excluir/${id}`, {
       method: 'DELETE',
+    })
+  },
+
+  listarComentariosDenuncia(id) {
+    return request(`/api/denuncias/${id}/comentarios`)
+  },
+
+  criarComentarioDenuncia(id, dados) {
+    return request(`/api/denuncias/${id}/comentarios`, {
+      method: 'POST',
+      body: JSON.stringify(dados),
     })
   },
 
